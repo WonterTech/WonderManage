@@ -1,0 +1,26 @@
+{% extends "tracker/base.html" %}
+{% block content %}
+<h1>Tasks</h1>
+{% if filter_labels %}
+<p class="sub">Showing tasks {{ filter_labels|join:", " }}. <a href="{% url 'task_list' %}">Clear filter</a></p>
+{% endif %}
+{% if perms.tracker.add_task %}<div class="actions"><a class="btn" href="{% url 'task_create' %}{% if add_qs %}?{{ add_qs }}{% endif %}">Add task</a></div>{% endif %}
+<div class="tabs">
+  {% for key, label in filters.items %}<a href="?status={{ key }}{{ extra_qs }}" class="{% if key == current %}on{% endif %}">{{ label }}</a>{% endfor %}
+</div>
+<div class="wrap">
+<table>
+  <thead><tr><th>Task</th><th>Due</th><th>Priority</th><th></th></tr></thead>
+  <tbody>
+  {% for t in tasks %}
+  <tr>
+    <td>{% include "tracker/_task_row.html" %}</td>
+    <td class="date" style="{% if t.is_overdue %}color:var(--late){% endif %}">{% if t.due_date %}{{ t.due_date|date:"D j M" }}{% else %}-{% endif %}</td>
+    <td>{{ t.get_priority_display }}</td>
+    <td>{% if perms.tracker.delete_task %}<a href="{% url 'task_delete' t.pk %}">Delete</a>{% endif %}</td>
+  </tr>
+  {% empty %}<tr><td colspan="4" class="empty">No tasks here. Add one to get started.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

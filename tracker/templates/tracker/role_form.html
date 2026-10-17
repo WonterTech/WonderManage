@@ -1,0 +1,38 @@
+{% extends "tracker/base.html" %}
+{% block content %}
+<h1>{{ page_title }}</h1>
+<form method="post" class="stack" id="role-form">{% csrf_token %}
+  {% if error %}<p class="err" role="alert">{{ error }}</p>{% endif %}
+  <div class="field">
+    <label for="role-name">Role name</label>
+    <input id="role-name" name="name" value="{{ name }}" required maxlength="150">
+  </div>
+  {% for area in areas %}
+  <fieldset class="perm-group" data-view="{{ area.view|default:'' }}">
+    <legend>{{ area.title }}</legend>
+    {% for p in area.items %}
+    <label class="perm">
+      <input type="checkbox" name="permissions" value="{{ p.code }}" {% if p.checked %}checked{% endif %}>
+      <span><b>{{ p.label }}</b>{% if p.help %}<small>{{ p.help }}</small>{% endif %}</span>
+    </label>
+    {% endfor %}
+  </fieldset>
+  {% endfor %}
+  <p class="helptext">Allowing any action in an area also lets the role see that area.</p>
+  <button class="btn" type="submit">Save role</button>
+  <a class="btn ghost" href="{% url 'role_list' %}">Cancel</a>
+</form>
+<script>
+document.querySelectorAll('#role-form fieldset[data-view]').forEach(function (fs) {
+  var view = fs.dataset.view;
+  if (!view) return;
+  var viewBox = fs.querySelector('input[value="' + view + '"]');
+  fs.addEventListener('change', function (e) {
+    if (!viewBox) return;
+    var t = e.target;
+    if (t !== viewBox && t.checked) viewBox.checked = true;
+    if (t === viewBox && !t.checked) fs.querySelectorAll('input').forEach(function (b) { b.checked = false; });
+  });
+});
+</script>
+{% endblock %}

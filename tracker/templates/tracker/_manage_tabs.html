@@ -1,0 +1,5 @@
+<div class="tabs">
+  <a href="{% url 'user_list' %}" class="{% if active == 'users' %}on{% endif %}">Users</a>
+  <a href="{% url 'role_list' %}" class="{% if active == 'roles' %}on{% endif %}">Roles</a>
+  <a href="{% url 'branding' %}" class="{% if active == 'branding' %}on{% endif %}">Appearance</a>
+</div>

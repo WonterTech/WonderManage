@@ -1,0 +1,98 @@
+{% extends "tracker/base.html" %}
+{% block content %}
+<h1>{{ today|date:"l j F" }}</h1>
+<p class="sub">
+  {% if overdue %}{{ overdue|length }} overdue. {% endif %}
+  {{ due_today }} task{{ due_today|pluralize }} due today.
+  {% if today_log %}{% if perms.tracker.change_dailylog %}<a href="{% url 'log_update' today_log.pk %}">Today's log</a>{% else %}Today's log{% endif %} is written.{% else %}Today's log is empty.{% endif %}
+</p>
+<div class="actions">
+  {% if perms.tracker.add_task %}<a class="btn" href="{% url 'task_create' %}?next={% url 'dashboard' %}">Add task</a>{% endif %}
+  {% if perms.tracker.view_mission %}<a class="btn ghost" href="{% url 'mission_list' %}">Mission types</a>{% endif %}
+  {% if perms.tracker.add_dailylog %}<a class="btn ghost" href="{% url 'log_today' %}">Write today's log</a>{% endif %}
+</div>
+
+<div class="calhead">
+  <h2>{{ month_start|date:"F Y" }}</h2>
+  <a class="btn ghost" href="?month={{ prev_month|date:'Y-m' }}">Previous</a>
+  <a class="btn ghost" href="?month={{ next_month|date:'Y-m' }}">Next</a>
+  {% if not is_current_month %}<a class="btn ghost" href="{% url 'dashboard' %}">Today</a>{% endif %}
+</div>
+
+<div class="cal-scroll">
+  <div class="cal" role="grid" aria-label="Calendar for {{ month_start|date:'F Y' }}">
+    <div class="cal-row cal-dow">{% for d in weekdays %}<div>{{ d }}</div>{% endfor %}</div>
+    {% for week in weeks %}
+    <div class="cal-row">
+      {% for cell in week %}
+      <div class="cal-day{% if not cell.in_month %} out{% endif %}{% if cell.is_today %} today{% endif %}">
+        <a class="num" href="{% url 'task_list' %}?date={{ cell.date|date:'Y-m-d' }}">{% if cell.date.day == 1 %}{{ cell.date|date:"j M" }}{% else %}{{ cell.date.day }}{% endif %}</a>
+        {% if perms.tracker.add_task %}<a class="add" href="{% url 'task_create' %}?date={{ cell.date|date:'Y-m-d' }}&amp;next={{ request.get_full_path|urlencode }}" aria-label="Add task on {{ cell.date|date:'j F' }}">+</a>{% endif %}
+        {% for t in cell.tasks %}
+        <div class="chip p{{ t.priority }}{% if t.status == 'done' %} done{% endif %}{% if t.is_overdue %} late{% endif %}">
+          {% if perms.tracker.change_task %}
+          <form method="post" action="{% url 'task_toggle' t.pk %}">{% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button class="check {% if t.status == 'done' %}on{% endif %}" aria-label="{% if t.status == 'done' %}Reopen{% else %}Mark done{% endif %}: {{ t.display_title }}"></button>
+          </form>
+          {% else %}<span class="check ro {% if t.status == 'done' %}on{% endif %}" role="img" aria-label="{% if t.status == 'done' %}Done{% else %}Not done{% endif %}"></span>{% endif %}
+          <a href="{% url 'task_detail' t.pk %}" title="{{ t.display_title }}{% if t.mission %} ({{ t.mission.title }}){% endif %}{% if t.place %} at {{ t.place.name }}{% endif %}">{{ t.display_title }}{% if t.place %}<span class="loc">{{ t.place.name }}</span>{% endif %}</a>
+        </div>
+        {% endfor %}
+        {% if cell.more %}<a class="more" href="{% url 'task_list' %}?date={{ cell.date|date:'Y-m-d' }}">+{{ cell.more }} more</a>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% if overdue or unscheduled %}
+<div class="cols" style="margin-top:1.25rem">
+  <div class="card">
+    <strong>Overdue</strong>
+    {% for t in overdue %}{% include "tracker/_task_row.html" with show_due=True %}{% empty %}<p class="empty" style="margin:.4rem 0 0">Nothing overdue.</p>{% endfor %}
+  </div>
+  <div class="card">
+    <strong>No due date</strong>
+    {% for t in unscheduled %}{% include "tracker/_task_row.html" %}{% empty %}<p class="empty" style="margin:.4rem 0 0">Every task has a date.</p>{% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<h2>How you're doing</h2>
+<div class="stats">
+  <div class="stat"><b>{{ done_this_week }}</b><span>tasks done in the last 7 days</span></div>
+  <div class="stat"><b>{% if completion_rate is None %}-{% else %}{{ completion_rate }}%{% endif %}</b><span>of tasks due in 30 days finished</span></div>
+  <div class="stat"><b>{% if on_time_rate is None %}-{% else %}{{ on_time_rate }}%{% endif %}</b><span>finished on or before due date</span></div>
+  <div class="stat"><b>{{ hours_week|floatformat:"-1" }} h</b><span>logged in the last 7 days</span></div>
+  <div class="stat"><b>{{ streak }}</b><span>day{{ streak|pluralize }} in a row with activity</span></div>
+</div>
+{% if best_day %}<p class="sub" style="margin-top:.7rem">You finish the most tasks on {{ best_day }}s. Put your hardest work there.</p>{% endif %}
+
+<h2>Tasks finished per day</h2>
+<div class="chart" role="img" aria-label="Bar chart of tasks completed in the last 14 days">
+  {% for c in chart %}
+  <div class="col">
+    <span class="n">{{ c.count }}</span>
+    <div class="bar {% if not c.count %}zero{% endif %}" style="height:{{ c.height }}%"></div>
+    <small>{{ c.date|date:"j" }}</small>
+  </div>
+  {% endfor %}
+</div>
+
+<h2>Mission types</h2>
+<div class="card">
+  <ul>
+    {% for m in types %}
+    <li>
+      <a href="{% url 'task_list' %}?mission={{ m.pk }}&amp;status=all">{{ m.title }}</a>
+      <span class="m">&nbsp;{{ m.done }} done, {{ m.open }} open</span>
+      <div class="meter"><i style="width:{{ m.pct }}%"></i></div>
+    </li>
+    {% empty %}
+    <li class="empty">No mission types in use yet. <a href="{% url 'mission_list' %}">Add one</a>, then pick it when you add a task.</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

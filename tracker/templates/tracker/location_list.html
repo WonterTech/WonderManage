@@ -1,0 +1,158 @@
+{% extends "tracker/base.html" %}
+{% load static %}
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+[hidden]{display:none!important}
+.loc-head{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
+.loc-head h1{margin:0 0 .2rem}
+.loc-head .sub{margin:0}
+
+.places{grid-template-columns:minmax(300px,380px) 1fr}
+.places .card{padding:.8rem}
+.loc-tools{display:flex;flex-direction:column;gap:.6rem;margin-bottom:.4rem}
+.loc-filters{display:flex;gap:.4rem;flex-wrap:wrap}
+.fchip{background:transparent;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:.25rem .8rem;font:inherit;font-size:.88rem;cursor:pointer}
+.fchip:hover{background:var(--soft);color:var(--ink)}
+.fchip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.loc-count{color:var(--muted);font-size:.85rem}
+
+.place-list{margin-top:.4rem;max-height:min(640px,68vh);display:flex;flex-direction:column;gap:.45rem}
+.place-list li.place{padding:.75rem .85rem;border:1px solid var(--line);border-radius:10px;background:var(--panel);border-bottom:1px solid var(--line);transition:border-color .15s,background-color .15s}
+.place-list li.place:last-child{border-bottom:1px solid var(--line)}
+.place-list li.place:hover{border-color:var(--muted)}
+.place-list li.place.active{border-color:var(--accent);background:var(--soft);box-shadow:inset 4px 0 0 var(--accent)}
+.place-list li.empty{border:0;padding:.6rem .2rem}
+.place-name{font-size:1.02rem;font-weight:650;color:var(--ink);line-height:1.3;display:block;width:100%}
+.place-name:hover{color:var(--accent)}
+.place-addr{display:flex;gap:.35rem;align-items:flex-start;color:var(--muted);font-size:.9rem;margin-top:.2rem}
+.place-addr svg{flex:none;margin-top:.22rem}
+.place-addr.none{font-style:italic}
+.pchips{display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.5rem}
+.pchip{font-size:.78rem;padding:.05rem .55rem;border-radius:99px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.pchip.open{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:650}
+.pchip.warn{border-style:dashed}
+a.pchip{text-decoration:none}
+a.pchip.open:hover{filter:brightness(1.1);text-decoration:underline}
+.pacts{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-top:.65rem}
+.mini{display:inline-flex;align-items:center;gap:.3rem;font:inherit;font-size:.86rem;font-weight:600;line-height:1.2;padding:.32rem .7rem;border-radius:7px;border:1px solid var(--line);background:transparent;color:var(--ink);text-decoration:none;cursor:pointer}
+.mini:hover{background:var(--soft)}
+.mini.main{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.mini.main:hover{filter:brightness(1.08);background:var(--accent)}
+.pmore{position:relative;margin-left:auto}
+.pmore summary{list-style:none;cursor:pointer;width:2rem;height:2rem;display:flex;align-items:center;justify-content:center;border-radius:7px;border:1px solid var(--line);color:var(--muted);font-size:1.1rem;line-height:1;user-select:none}
+.pmore summary::-webkit-details-marker{display:none}
+.pmore summary:hover,.pmore[open] summary{background:var(--soft);color:var(--ink)}
+.pmore .menu{position:absolute;right:0;top:calc(100% + 4px);z-index:30;min-width:11.5rem;display:flex;flex-direction:column;padding:.25rem;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.22)}
+.pmore .menu a,.pmore .menu button{display:block;width:100%;text-align:left;padding:.45rem .6rem;border:0;border-radius:5px;background:none;color:var(--ink);font:inherit;font-size:.92rem;text-decoration:none;cursor:pointer}
+.pmore .menu a:hover,.pmore .menu button:hover{background:var(--soft)}
+.pmore .menu .danger{color:var(--late)}
+.place-list li.place:nth-last-child(-n+3) .pmore .menu{top:auto;bottom:calc(100% + 4px)}
+
+.map-col{position:sticky;top:.8rem}
+.map-legend{display:flex;gap:1.1rem;flex-wrap:wrap;align-items:center;color:var(--muted);font-size:.85rem;margin-top:.5rem}
+.map-legend span{display:inline-flex;align-items:center;gap:.4rem}
+.map-legend i{display:inline-block;width:.8rem;height:.8rem;border-radius:50%;background:var(--accent)}
+.map-legend i.idle{background:var(--muted)}
+
+.pop{min-width:210px}
+.pop strong{font-size:1.02rem}
+.pop .pchips{margin-top:.4rem}
+.pop h4{margin:.7rem 0 .2rem;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.pop ul{margin:0;padding:0;list-style:none}
+.pop li{display:flex;justify-content:space-between;gap:.8rem;padding:.15rem 0;font-size:.9rem}
+.pop li span{color:var(--muted);white-space:nowrap}
+.pop-links{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.7rem}
+.pop-links .mini{font-size:.82rem;padding:.28rem .6rem}
+.leaflet-popup-content a.mini{color:var(--ink)}
+.leaflet-popup-content a.mini.main{color:var(--accent-ink)}
+
+@media(max-width:860px){
+  .places{grid-template-columns:1fr}
+  .map-col{position:static;order:-1}
+  .map.big{height:44vh}
+  .place-list{max-height:none}
+}
+</style>
+{% endblock %}
+{% block content %}
+<div class="loc-head">
+  <div>
+    <h1>Locations</h1>
+    <p class="sub">Your places, with their open tasks.{% if perms.tracker.add_location %} Click anywhere on the map to add a new one.{% endif %}</p>
+  </div>
+  {% if perms.tracker.add_location %}<button type="button" class="btn" id="add-place">+ Add location</button>{% endif %}
+</div>
+
+<div class="places">
+  <div class="card">
+    <div class="loc-tools">
+      <input type="search" id="places-filter" placeholder="Search by name or address" aria-label="Search your locations">
+      <div class="loc-filters" role="group" aria-label="Filter locations">
+        <button type="button" class="fchip" data-mode="all" aria-pressed="true">All</button>
+        <button type="button" class="fchip" data-mode="busy" aria-pressed="false">With open tasks</button>
+        <button type="button" class="fchip" data-mode="nopin" aria-pressed="false">No map pin</button>
+      </div>
+      <div class="loc-count" id="loc-count" aria-live="polite"></div>
+    </div>
+    <ul class="place-list" id="place-items">
+      {% for p in locations %}
+      <li class="place" id="place-{{ p.pk }}" data-id="{{ p.pk }}" data-pin="{% if p.has_pin %}1{% else %}0{% endif %}" data-open="{{ p.open_count }}" data-search="{{ p.name|lower }} {{ p.note|lower }}">
+        <button type="button" class="linkbtn place-name js-show" data-id="{{ p.pk }}">{{ p.name }}</button>
+        {% if p.note %}
+        <div class="place-addr"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span>{{ p.note }}</span></div>
+        {% endif %}
+        <div class="pchips">
+          {% if p.open_count %}{% if perms.tracker.view_task %}<a class="pchip open" href="{% url 'task_list' %}?place={{ p.pk }}&amp;status=open" title="See these tasks">{{ p.open_count }} open task{{ p.open_count|pluralize }}</a>{% else %}<span class="pchip open">{{ p.open_count }} open task{{ p.open_count|pluralize }}</span>{% endif %}{% else %}<span class="pchip">No open tasks</span>{% endif %}
+          {% if p.done_count %}<span class="pchip">{{ p.done_count }} done</span>{% endif %}
+          {% if p.client_document_count %}<span class="pchip">{{ p.client_document_count }} client doc{{ p.client_document_count|pluralize }}</span>{% endif %}
+          {% if p.supplier_purchase_count %}<span class="pchip">{{ p.supplier_purchase_count }} purchase{{ p.supplier_purchase_count|pluralize }}</span>{% endif %}
+          {% if not p.has_pin %}<span class="pchip warn">No map pin</span>{% endif %}
+        </div>
+        <div class="pacts">
+          {% if p.has_pin %}
+            <button type="button" class="mini main js-show" data-id="{{ p.pk }}">Show on map</button>
+            <a class="mini" href="https://www.google.com/maps/dir/?api=1&amp;destination={{ p.latitude }},{{ p.longitude }}" target="_blank" rel="noopener">Directions</a>
+          {% elif perms.tracker.change_location %}
+            <button type="button" class="mini main js-edit" data-id="{{ p.pk }}">Add map pin</button>
+          {% endif %}
+          <details class="pmore">
+            <summary aria-label="More actions for {{ p.name }}" title="More">&#8943;</summary>
+            <div class="menu">
+              {% if perms.tracker.view_task %}<a href="{% url 'task_list' %}?place={{ p.pk }}&amp;status=all">See all tasks here</a>{% endif %}
+              {% if p.has_pin %}
+              <a href="https://www.google.com/maps/search/?api=1&amp;query={{ p.latitude }},{{ p.longitude }}" target="_blank" rel="noopener">Open in Google Maps</a>
+              <button type="button" class="js-copy-map" data-url="https://www.google.com/maps/search/?api=1&amp;query={{ p.latitude }},{{ p.longitude }}">Copy map link</button>
+              {% endif %}
+              {% if perms.tracker.change_location %}<button type="button" class="js-edit" data-id="{{ p.pk }}">Edit name, address or pin</button>{% endif %}
+              {% if perms.tracker.delete_location %}<a class="danger" href="{% url 'location_delete' p.pk %}">Delete</a>{% endif %}
+            </div>
+          </details>
+        </div>
+      </li>
+      {% empty %}
+      <li class="empty">No locations yet.{% if perms.tracker.add_location %} Use <b>+ Add location</b>, click the map, or add one while creating a task.{% endif %}</li>
+      {% endfor %}
+      <li class="empty" id="no-match" hidden>No location matches. Try another word or clear the filter.</li>
+    </ul>
+  </div>
+
+  <div class="map-col">
+    <div id="places-map" class="map big" role="application" aria-label="Map of your locations"></div>
+    <div class="map-legend">
+      <span><i></i> Has open tasks (the number is how many)</span>
+      <span><i class="idle"></i> No open tasks</span>
+    </div>
+  </div>
+</div>
+
+{% include "tracker/_location_dialog.html" %}
+{{ map_data|json_script:"places-data" }}
+{{ map_urls|json_script:"places-urls" }}
+{% endblock %}
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="{% static 'tracker/mapkit.js' %}"></script>
+<script src="{% static 'tracker/location_dialog.js' %}"></script>
+<script src="{% static 'tracker/locations_map.js' %}"></script>
+{% endblock %}

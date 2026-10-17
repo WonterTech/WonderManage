@@ -1,0 +1,46 @@
+{% extends "tracker/base.html" %}
+{% block title %}Activity{% endblock %}
+{% block head %}
+<style>
+.filters{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
+.filters input,.filters select{padding:.4rem .6rem;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font:inherit}
+.act-created{color:var(--done)}.act-deleted{color:var(--late)}
+.pager{display:flex;gap:1rem;align-items:center;margin-top:1rem}
+</style>
+{% endblock %}
+{% block content %}
+<h1>Activity</h1>
+<p class="sub">Who added, changed or deleted tasks, materials, stock and purchases, and when. Entries can't be edited or removed.</p>
+<form method="get" class="filters">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search" aria-label="Search">
+  <select name="kind" aria-label="What"><option value="">Everything</option>{% for k in kinds %}<option value="{{ k }}" {% if k == kind %}selected{% endif %}>{{ k }}</option>{% endfor %}</select>
+  <select name="action" aria-label="Action"><option value="">Any action</option>{% for key, label in actions %}<option value="{{ key }}" {% if key == action %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+  <select name="user" aria-label="Who"><option value="">Anyone</option>{% for u in users %}<option value="{{ u }}" {% if u == who %}selected{% endif %}>{{ u }}</option>{% endfor %}</select>
+  <label>From <input type="date" name="from" value="{{ start }}"></label>
+  <label>To <input type="date" name="to" value="{{ end }}"></label>
+  <button class="btn ghost" type="submit">Filter</button>
+</form>
+<div class="wrap">
+<table>
+  <thead><tr><th>When</th><th>Who</th><th>Action</th><th>What</th><th>Details</th></tr></thead>
+  <tbody>
+  {% for e in page %}
+  <tr>
+    <td class="date">{{ e.when|date:"j M Y H:i" }}</td>
+    <td>{{ e.username|default:"-" }}</td>
+    <td class="act-{{ e.action }}">{% if e.action == 'created' %}Added{% elif e.action == 'updated' %}Changed{% else %}Deleted{% endif %}</td>
+    <td>{{ e.kind }}: <strong>{{ e.target }}</strong></td>
+    <td>{{ e.details }}</td>
+  </tr>
+  {% empty %}<tr><td colspan="5" class="empty">Nothing recorded yet.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% if page.paginator.num_pages > 1 %}
+<div class="pager">
+  {% if page.has_previous %}<a href="?{% if keep_qs %}{{ keep_qs }}&amp;{% endif %}page={{ page.previous_page_number }}">Newer</a>{% endif %}
+  <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a href="?{% if keep_qs %}{{ keep_qs }}&amp;{% endif %}page={{ page.next_page_number }}">Older</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

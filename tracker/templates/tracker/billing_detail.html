@@ -1,0 +1,148 @@
+{% extends "tracker/base.html" %}
+{% load tracker_extras %}
+{% block title %}{{ doc.code }}{% endblock %}
+{% block head %}
+<style>
+.bar{display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem;align-items:center}
+.bar form{margin:0}
+.sheet{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:2rem 2.2rem;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.sheet-head{display:flex;justify-content:space-between;gap:2rem;flex-wrap:wrap;padding-bottom:1.4rem;border-bottom:3px solid var(--accent)}
+.from .logo{max-height:64px;max-width:220px;object-fit:contain;display:block;margin-bottom:.5rem}
+.from .co{line-height:1.45}
+.ttl{text-align:right}
+.ttl .kind{display:block;font-size:1.9rem;font-weight:800;letter-spacing:.04em;color:var(--accent);line-height:1.1}
+.ttl .code{display:block;font-size:1.15rem;font-weight:600;margin:.2rem 0 .5rem;font-variant-numeric:tabular-nums}
+.badge{display:inline-block;font-size:.8rem;font-weight:700;padding:.1rem .7rem;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+.badge.st-validated{border-color:var(--accent);color:var(--accent)}
+.badge.st-paid,.badge.st-delivered{border-color:var(--done);color:var(--done)}
+.badge.st-cancelled,.badge.late{border-color:var(--late);color:var(--late)}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin:1.4rem 0}
+@media(max-width:700px){.info{grid-template-columns:1fr}.sheet{padding:1.2rem}}
+.box{border:1px solid var(--line);border-radius:10px;padding:.8rem 1rem;background:var(--bg)}
+.box small{display:block;color:var(--muted);font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.25rem}
+.box b{font-size:1.1rem}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:.15rem 1rem}
+.kv span:nth-child(odd){color:var(--muted)}
+table.lines{border:0;border-radius:0;background:none}
+table.lines th{background:var(--accent);color:var(--accent-ink);border:0;font-size:.82rem;text-transform:uppercase;letter-spacing:.04em}
+table.lines th:first-child{border-radius:8px 0 0 8px}table.lines th:last-child{border-radius:0 8px 8px 0}
+table.lines td{border-bottom:1px solid var(--line)}
+.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.dim{color:var(--muted)}
+.bottom{display:grid;grid-template-columns:1fr minmax(280px,380px);gap:1.5rem;margin-top:1.2rem;align-items:start}
+@media(max-width:760px){.bottom{grid-template-columns:1fr}}
+.totals{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.totals div{display:flex;justify-content:space-between;gap:1rem;padding:.45rem .9rem;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.totals div:last-child{border-bottom:0}
+.totals .sub-row{color:var(--muted);font-size:.9rem;padding-left:1.6rem}
+.totals .grand{background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:1.15rem;padding:.7rem .9rem}
+.notes{white-space:pre-line;color:var(--muted)}
+.links{margin-top:1rem;color:var(--muted);font-size:.9rem}
+@page{size:A4;margin:0}
+@media print{
+  :root{--bg:#fff;--panel:#fff;--ink:#000;--muted:#444;--line:#bbb;--accent:#0F6E6E;--accent-ink:#fff}
+  header.top,.bar,.links,.no-print{display:none!important}
+  body{background:#fff;margin:0}
+  main{max-width:none;padding:0;margin:0}
+  /* Margin 0 makes the browser drop its own header (page title / number) and footer (site address / date / page number).
+     The white space around the invoice is given back with padding on the sheet instead. */
+  .sheet{border:0;box-shadow:none;padding:14mm 14mm 16mm;border-radius:0}
+  .sheet-head,.info,.bottom,.totals,table.lines tr{break-inside:avoid;page-break-inside:avoid}
+  table.lines thead{display:table-header-group}
+  table.lines th{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .totals .grand{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+{% endblock %}
+{% block content %}
+<div class="bar">
+  {% if perms.tracker.change_document %}<a class="btn" href="{% url 'document_update' doc.pk %}">Modifier</a>{% endif %}
+  <button class="btn ghost" type="button" onclick="window.print()">Imprimer / PDF</button>
+  {% if perms.tracker.change_document %}
+    {% if doc.kind == 'facture' %}
+      {% if doc.status == 'draft' %}<form method="post" action="{% url 'document_status' doc.pk 'validated' %}">{% csrf_token %}<button class="btn ghost" type="submit">Valider</button></form>{% endif %}
+      {% if doc.status == 'validated' %}<form method="post" action="{% url 'document_status' doc.pk 'paid' %}">{% csrf_token %}<button class="btn ghost" type="submit">Marquer payé</button></form>{% endif %}
+      {% if doc.status == 'paid' %}<form method="post" action="{% url 'document_status' doc.pk 'validated' %}">{% csrf_token %}<button class="btn ghost" type="submit">Remettre « Validé »</button></form>{% endif %}
+    {% else %}
+      {% if doc.status == 'draft' %}<form method="post" action="{% url 'document_status' doc.pk 'delivered' %}">{% csrf_token %}<button class="btn ghost" type="submit">Marquer livré</button></form>{% endif %}
+    {% endif %}
+    {% if doc.status != 'cancelled' %}<form method="post" action="{% url 'document_status' doc.pk 'cancelled' %}" onsubmit="return confirm('Annuler {{ doc.code }} ?')">{% csrf_token %}<button class="btn ghost" type="submit">Annuler</button></form>
+    {% else %}<form method="post" action="{% url 'document_status' doc.pk 'draft' %}">{% csrf_token %}<button class="btn ghost" type="submit">Rouvrir en brouillon</button></form>{% endif %}
+  {% endif %}
+  {% if doc.kind == 'bl' and doc.status != 'cancelled' and perms.tracker.add_document %}
+  <form method="post" action="{% url 'document_convert' doc.pk %}">{% csrf_token %}<button class="btn ghost" type="submit">Créer la facture</button></form>
+  {% endif %}
+  {% if perms.tracker.delete_document %}<a class="btn ghost" href="{% url 'document_delete' doc.pk %}">Supprimer</a>{% endif %}
+  <a class="btn ghost" href="{% url 'document_list' %}">Facturation</a>
+</div>
+
+<div class="sheet">
+  <div class="sheet-head">
+    <div class="from">
+      {% if brand.logo_url %}<img class="logo" src="{{ brand.logo_url }}" alt="">{% endif %}
+      <div class="co">{% if company %}{{ company|linebreaksbr }}{% else %}<b>{{ brand.name }}</b>
+        {% if perms.tracker.change_document %}<div class="no-print dim"><a href="{% url 'document_company' %}">Ajouter vos coordonnées (adresse, matricule fiscal…)</a></div>{% endif %}{% endif %}</div>
+    </div>
+    <div class="ttl">
+      <span class="kind">{{ doc.title|upper }}</span>
+      <span class="code">N° {{ doc.code }}</span>
+      <span class="badge st-{{ doc.status }}">{{ doc.get_status_display }}</span>{% if late %} <span class="badge late">En retard</span>{% endif %}
+    </div>
+  </div>
+
+  <div class="info">
+    <div class="box">
+      <small>Client</small>
+      <b>{{ doc.client_name }}</b>
+      {% if doc.client_address %}<div>{{ doc.client_address }}</div>{% elif doc.client_location and doc.client_location.note %}<div>{{ doc.client_location.note }}</div>{% endif %}
+      {% if doc.client_location and doc.client_location.has_pin %}<div class="no-print"><a href="https://www.google.com/maps/search/?api=1&amp;query={{ doc.client_location.latitude }},{{ doc.client_location.longitude }}" target="_blank" rel="noopener">Open client location in Google Maps</a></div>{% endif %}
+      {% if doc.client_tax_id %}<div class="dim">MF : {{ doc.client_tax_id }}</div>{% endif %}
+      {% if doc.client_phone %}<div class="dim">Tél : {{ doc.client_phone }}</div>{% endif %}
+      {% if doc.client_email %}<div class="dim">{{ doc.client_email }}</div>{% endif %}
+    </div>
+    <div class="box">
+      <small>Détails</small>
+      <div class="kv">
+        <span>Date</span><span>{{ doc.date|date:"d/m/Y" }}</span>
+        {% if doc.kind == 'facture' %}
+        {% if doc.due_date %}<span>Échéance</span><span>{{ doc.due_date|date:"d/m/Y" }}</span>{% endif %}
+        {% if doc.payment_method %}<span>Paiement</span><span>{{ doc.payment_method }}</span>{% endif %}
+        {% endif %}
+        {% if from_doc %}<span>Bon de livraison</span><span>{{ from_doc.code }}</span>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+  <table class="lines">
+    <thead><tr><th>Désignation</th><th class="num">Qté</th><th class="num">P.U. HT</th><th class="num">Remise</th><th class="num">TVA</th><th class="num">Total HT</th></tr></thead>
+    <tbody>
+    {% for r in t.rows %}
+    <tr>
+      <td>{{ r.line.description }}</td>
+      <td class="num">{{ r.line.quantity|qty }}{% if r.line.unit %} {{ r.line.unit }}{% endif %}</td>
+      <td class="num">{{ r.line.unit_price|money }}</td>
+      <td class="num">{% if r.line.discount_pct %}{{ r.line.discount_pct|floatformat:"-2" }} %{% else %}<span class="dim">-</span>{% endif %}</td>
+      <td class="num">{{ r.line.vat_rate|floatformat:"-2" }} %</td>
+      <td class="num"><b>{{ r.ht|money }}</b></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  <div class="bottom">
+    <div>{% if doc.notes %}<div class="box"><small>Notes</small><div class="notes">{{ doc.notes }}</div></div>{% endif %}</div>
+    <div class="totals">
+      <div><span>Total HT</span><span>{{ t.total_ht|money }} {{ brand.currency }}</span></div>
+      {% for g in t.vat_groups %}<div class="sub-row"><span>TVA {{ g.rate|floatformat:"-2" }} % (base {{ g.base|money }})</span><span>{{ g.amount|money }}</span></div>{% endfor %}
+      <div><span>Total TVA</span><span>{{ t.total_vat|money }} {{ brand.currency }}</span></div>
+      {% if t.stamp %}<div><span>Timbre fiscal</span><span>{{ t.stamp|money }} {{ brand.currency }}</span></div>{% endif %}
+      <div><span><b>Total TTC</b></span><span><b>{{ t.total_ttc|money }} {{ brand.currency }}</b></span></div>
+      {% if doc.withholding_rate %}<div><span>Retenue à la source ({{ doc.withholding_rate|floatformat:"-2" }} %)</span><span>- {{ t.withholding|money }} {{ brand.currency }}</span></div>{% endif %}
+      <div class="grand"><span>Net à payer</span><span>{{ t.net|money }} {{ brand.currency }}</span></div>
+    </div>
+  </div>
+</div>
+{% if converted %}<p class="links">Facture créée depuis ce bon : {% for c in converted %}<a href="{% url 'document_detail' c.pk %}">{{ c.code }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+{% endblock %}

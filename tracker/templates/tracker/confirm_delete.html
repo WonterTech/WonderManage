@@ -1,0 +1,15 @@
+{% extends "tracker/base.html" %}
+{% block content %}
+{% if blocked %}
+<h1>"{{ object }}" can't be deleted</h1>
+<p class="sub">{{ delete_note }}</p>
+<a class="btn ghost" href="{% firstof cancel_url '/' %}">Back</a>
+{% else %}
+<h1>Delete "{{ object }}"?</h1>
+<p class="sub">This can't be undone.{% if delete_note %} {{ delete_note }}{% endif %}</p>
+<form method="post">{% csrf_token %}
+  <button class="btn danger" type="submit">Delete</button>
+  <a class="btn ghost" href="{% firstof cancel_url '/' %}">Keep it</a>
+</form>
+{% endif %}
+{% endblock %}

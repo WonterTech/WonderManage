@@ -1,0 +1,51 @@
+{% extends "tracker/base.html" %}
+{% load tracker_extras %}
+{% block title %}Inventory{% endblock %}
+{% block head %}
+<style>
+.filters{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
+.filters input[type=search],.filters select{padding:.4rem .6rem;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font:inherit}
+.num{text-align:right;white-space:nowrap}
+.dim{color:var(--muted)}
+</style>
+{% endblock %}
+{% block content %}
+<h1>Inventory</h1>
+<p class="sub">
+  Products and materials in stock. Stock = everything bought minus everything used on tasks.
+  {% if low_count %}<strong style="color:var(--late)">{{ low_count }} item{{ low_count|pluralize }} low on stock.</strong>{% endif %}
+  {% if perms.tracker.view_costs %} Stock value at average cost: <strong>{{ stock_value|money }} {{ brand.currency }}</strong>.{% endif %}
+</p>
+{% if perms.tracker.add_inventoryitem %}<div class="actions"><a class="btn" href="{% url 'item_create' %}">Add product or material</a></div>{% endif %}
+<form method="get" class="filters">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search name or reference" aria-label="Search">
+  <select name="kind" aria-label="Type">
+    <option value="">All types</option>
+    {% for k in kinds %}<option value="{{ k }}" {% if k == kind %}selected{% endif %}>{{ k }}</option>{% endfor %}
+  </select>
+  <label><input type="checkbox" name="show" value="all" {% if show_all %}checked{% endif %}> Show hidden items</label>
+  <button class="btn ghost" type="submit">Filter</button>
+</form>
+<div class="wrap">
+<table>
+  <thead><tr>
+    <th>Name</th><th>Type</th><th class="num">In stock</th>
+    {% if perms.tracker.view_costs %}<th class="num">Average cost</th><th class="num">Last price</th>{% endif %}
+  </tr></thead>
+  <tbody>
+  {% for r in rows %}
+  <tr>
+    <td><a href="{% url 'item_detail' r.item.pk %}">{{ r.item.name }}</a>{% if r.item.reference %} <span class="dim">{{ r.item.reference }}</span>{% endif %}{% if not r.item.is_active %} <span class="tag">Hidden</span>{% endif %}</td>
+    <td>{{ r.item.kind }}</td>
+    <td class="num">{{ r.s.in_stock|qty }} {{ r.item.unit }}
+      {% if r.flag == 'negative' %}<span class="tag p3">Below zero</span>{% elif r.flag == 'low' %}<span class="tag p3">Low</span>{% endif %}</td>
+    {% if perms.tracker.view_costs %}
+    <td class="num">{% if r.s.avg_cost is not None %}{{ r.s.avg_cost|money }} {{ brand.currency }}{% else %}<span class="dim">-</span>{% endif %}</td>
+    <td class="num">{% if r.s.last_price is not None %}{{ r.s.last_price|money }} {{ brand.currency }}{% else %}<span class="dim">-</span>{% endif %}</td>
+    {% endif %}
+  </tr>
+  {% empty %}<tr><td colspan="5" class="empty">Nothing here yet.{% if perms.tracker.add_inventoryitem %} Add your first product or material, then record a purchase to put it in stock.{% endif %}</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

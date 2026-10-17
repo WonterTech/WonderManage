@@ -1,0 +1,70 @@
+{% extends "tracker/base.html" %}
+{% load tracker_extras %}
+{% block title %}{{ item.name }}{% endblock %}
+{% block head %}
+<style>
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));gap:.8rem;margin:0 0 1.4rem}
+.facts div{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:.6rem .8rem}
+.facts b{display:block;font-size:1.25rem}
+.facts span{color:var(--muted);font-size:.85rem}
+.num{text-align:right;white-space:nowrap}
+.dim{color:var(--muted)}
+h2{margin:1.6rem 0 .6rem;font-size:1.1rem}
+</style>
+{% endblock %}
+{% block content %}
+<h1>{{ item.name }}{% if not item.is_active %} <span class="tag">Hidden</span>{% endif %}</h1>
+<p class="sub">{{ item.kind }}{% if item.reference %} · {{ item.reference }}{% endif %} · counted in {{ item.unit }}{% if item.note %} · {{ item.note }}{% endif %}</p>
+<div class="actions">
+  {% if perms.tracker.add_purchase %}<a class="btn" href="{% url 'purchase_create' item.pk %}">Record a purchase</a>{% endif %}
+  {% if perms.tracker.change_inventoryitem %}<a class="btn ghost" href="{% url 'item_update' item.pk %}">Edit</a>{% endif %}
+  {% if perms.tracker.delete_inventoryitem %}<a class="btn ghost" href="{% url 'item_delete' item.pk %}">Delete</a>{% endif %}
+  <a class="btn ghost" href="{% url 'inventory_list' %}">All items</a>
+</div>
+<div class="facts">
+  <div><b>{{ s.in_stock|qty }} {{ item.unit }}</b><span>In stock {% if flag == 'negative' %}<span class="tag p3">Below zero: record the missing purchase</span>{% elif flag == 'low' %}<span class="tag p3">Low</span>{% endif %}</span></div>
+  <div><b>{{ s.bought|qty }}</b><span>Bought in total</span></div>
+  <div><b>{{ s.used|qty }}</b><span>Used on tasks</span></div>
+  {% if perms.tracker.view_costs %}
+  <div><b>{% if s.avg_cost is not None %}{{ s.avg_cost|money }} {{ brand.currency }}{% else %}-{% endif %}</b><span>Average cost per unit</span></div>
+  <div><b>{{ s.spent|money }} {{ brand.currency }}</b><span>Spent in total</span></div>
+  {% endif %}
+</div>
+
+<h2>Purchases</h2>
+<div class="wrap">
+<table>
+  <thead><tr><th>Date</th><th class="num">Quantity</th>{% if perms.tracker.view_costs %}<th class="num">Price per unit</th><th class="num">Total</th>{% endif %}<th>Supplier</th><th></th></tr></thead>
+  <tbody>
+  {% for p in purchases %}
+  <tr>
+    <td class="date">{{ p.date|date:"D j M Y" }}</td>
+    <td class="num">{{ p.quantity|qty }} {{ item.unit }}</td>
+    {% if perms.tracker.view_costs %}<td class="num">{{ p.unit_price|money }} {{ brand.currency }}</td><td class="num">{{ p.total|money }} {{ brand.currency }}</td>{% endif %}
+    <td>{{ p.supplier }}{% if p.supplier_location %}<div class="dim">Location: {{ p.supplier_location.name }}{% if p.supplier_location.has_pin %} · <a href="https://www.google.com/maps/search/?api=1&amp;query={{ p.supplier_location.latitude }},{{ p.supplier_location.longitude }}" target="_blank" rel="noopener">Map</a>{% endif %}</div>{% endif %}{% if p.note %} <span class="dim">{{ p.note }}</span>{% endif %}</td>
+    <td>{% if perms.tracker.change_purchase %}<a href="{% url 'purchase_update' p.pk %}">Edit</a>{% endif %}{% if perms.tracker.delete_purchase %} <a href="{% url 'purchase_delete' p.pk %}">Delete</a>{% endif %}</td>
+  </tr>
+  {% empty %}<tr><td colspan="6" class="empty">No purchases recorded yet.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% if can_see_usage %}
+<h2>Used on tasks</h2>
+<div class="wrap">
+<table>
+  <thead><tr><th>Task</th><th class="num">Quantity</th>{% if perms.tracker.view_costs %}<th class="num">Cost per unit</th>{% endif %}<th>Note</th></tr></thead>
+  <tbody>
+  {% for u in usages %}
+  <tr>
+    <td>{% if perms.tracker.view_task %}<a href="{% url 'task_detail' u.task.pk %}">{{ u.task.display_title }}</a>{% else %}{{ u.task.display_title }}{% endif %}</td>
+    <td class="num">{{ u.quantity|qty }} {{ item.unit }}</td>
+    {% if perms.tracker.view_costs %}<td class="num">{% if u.unit_price is not None %}{{ u.unit_price|money }} {{ brand.currency }}{% else %}-{% endif %}</td>{% endif %}
+    <td>{{ u.note }}</td>
+  </tr>
+  {% empty %}<tr><td colspan="4" class="empty">Not used on any task yet.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}

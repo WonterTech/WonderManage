@@ -1,0 +1,18 @@
+{% extends "tracker/base.html" %}
+{% block title %}Shut down the server{% endblock %}
+{% block content %}
+{% if stopped %}
+<h1>The server is stopping</h1>
+<p class="sub">
+  {% if backup %}A backup of your data was saved first.{% else %}Your data had not changed since the last backup, so it is already safe.{% endif %}
+  This page will stop working in a moment. To start it again, double-click <strong>start_hidden.bat</strong> on the computer that runs it.
+</p>
+{% else %}
+<h1>Shut down the server?</h1>
+<p class="sub">Everyone will be disconnected and nobody can use the site until it is started again on the computer that runs it. A backup is made automatically before it stops.</p>
+<form method="post">{% csrf_token %}
+  <button class="btn danger" type="submit">Back up and shut down</button>
+  <a class="btn ghost" href="{% url 'dashboard' %}">Cancel</a>
+</form>
+{% endif %}
+{% endblock %}

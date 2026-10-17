@@ -1,0 +1,7 @@
+{% extends "tracker/base.html" %}
+{% block title %}No access{% endblock %}
+{% block content %}
+<h1>You don't have access to this page</h1>
+<p class="sub">Your role doesn't allow it. If you need it, ask an administrator to change your role.</p>
+<a class="btn" href="{% url 'dashboard' %}">Back to the dashboard</a>
+{% endblock %}

@@ -1,0 +1,10 @@
+<tr class="line-row">
+  <td class="c-desc">{{ f.description }}{% if f.description.errors %}<p class="err">{{ f.description.errors|striptags }}</p>{% endif %}{% for h in f.hidden_fields %}{{ h }}{% endfor %}<span hidden>{{ f.DELETE }}</span></td>
+  <td class="c-unit">{{ f.unit }}</td>
+  <td class="c-qty">{{ f.quantity }}{% if f.quantity.errors %}<p class="err">{{ f.quantity.errors|striptags }}</p>{% endif %}</td>
+  <td class="c-price">{{ f.unit_price }}{% if f.unit_price.errors %}<p class="err">{{ f.unit_price.errors|striptags }}</p>{% endif %}</td>
+  <td class="c-disc">{{ f.discount_pct }}</td>
+  <td class="c-vat">{{ f.vat_rate }}</td>
+  <td class="c-total num"><span class="line-total">0.000</span></td>
+  <td class="c-x"><button type="button" class="linkbtn rm" title="Retirer la ligne" aria-label="Retirer la ligne">✕</button></td>
+</tr>

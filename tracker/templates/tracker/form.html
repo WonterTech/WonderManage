@@ -1,0 +1,15 @@
+{% extends "tracker/base.html" %}
+{% block content %}
+<h1>{{ page_title }}</h1>
+<form method="post" class="stack">{% csrf_token %}
+  {% for f in form %}
+  <div class="field">
+    {{ f.label_tag }}{{ f }}
+    {% if f.help_text %}<span class="helptext">{{ f.help_text }}</span>{% endif %}
+    {% if f.errors %}<p class="err">{{ f.errors|striptags }}</p>{% endif %}
+  </div>
+  {% endfor %}
+  <button class="btn" type="submit">Save</button>
+  <a class="btn ghost" href="{{ cancel_url|default:"/" }}">Cancel</a>
+</form>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "tracker/base.html" %}
+{% load static %}
+{% block head %}<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">{% endblock %}
+{% block content %}
+<h1>{{ page_title }}</h1>
+<form method="post" class="stack" id="task-form">{% csrf_token %}
+  {% for f in form %}
+  {% if f.name == "place" %}
+  <div class="field">
+    <label for="place-search">{{ f.label }}</label>
+    {{ f }}
+    <div class="combo">
+      <input id="place-search" type="text" role="combobox" aria-expanded="false" aria-controls="place-list" aria-autocomplete="list" autocomplete="off" data-can-add="{{ perms.tracker.add_location|yesno:'1,0' }}" placeholder="Search your places{% if perms.tracker.add_location %} or type a new one{% endif %}">
+      <button type="button" class="combo-clear" id="place-clear" hidden>Clear</button>
+      <ul id="place-list" role="listbox" aria-label="Locations" hidden></ul>
+    </div>
+    <span class="helptext">Pick a saved place{% if perms.tracker.add_location %}, or type a new name and add it here. Nothing else on this form is lost{% endif %}.</span>
+    {% if f.errors %}<p class="err">{{ f.errors|striptags }}</p>{% endif %}
+  </div>
+  {% else %}
+  <div class="field">
+    {{ f.label_tag }}{{ f }}
+    {% if f.help_text %}<span class="helptext">{{ f.help_text }}</span>{% endif %}
+    {% if f.errors %}<p class="err">{{ f.errors|striptags }}</p>{% endif %}
+  </div>
+  {% endif %}
+  {% endfor %}
+  <button class="btn" type="submit">Save</button>
+  <a class="btn ghost" href="{{ cancel_url }}">Cancel</a>
+</form>
+
+{% include "tracker/_location_dialog.html" %}
+{{ locations|json_script:"locations-data" }}
+{% endblock %}
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="{% static 'tracker/mapkit.js' %}"></script>
+<script src="{% static 'tracker/location_dialog.js' %}"></script>
+<script src="{% static 'tracker/place_picker.js' %}"></script>
+{% endblock %}

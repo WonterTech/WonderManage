@@ -1,0 +1,22 @@
+{% extends "tracker/base.html" %}
+{% block content %}
+<h1>Daily log</h1>
+{% if perms.tracker.add_dailylog %}<div class="actions"><a class="btn" href="{% url 'log_today' %}">Write today's log</a></div>{% endif %}
+<div class="wrap">
+<table>
+  <thead><tr><th>Date</th><th>Done</th><th>Not done</th><th>Hours</th><th>Focus</th><th></th></tr></thead>
+  <tbody>
+  {% for l in logs %}
+  <tr>
+    <td class="date">{% if perms.tracker.change_dailylog %}<a href="{% url 'log_update' l.pk %}">{{ l.date|date:"D j M Y" }}</a>{% else %}{{ l.date|date:"D j M Y" }}{% endif %}</td>
+    <td>{{ l.done|linebreaksbr }}</td>
+    <td>{{ l.not_done|linebreaksbr }}</td>
+    <td>{{ l.hours_worked|floatformat:"-1" }}</td>
+    <td>{{ l.focus|default:"-" }}</td>
+    <td>{% if perms.tracker.delete_dailylog %}<a href="{% url 'log_delete' l.pk %}">Delete</a>{% endif %}</td>
+  </tr>
+  {% empty %}<tr><td colspan="6" class="empty">No entries yet. Write today's log at the end of your day.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

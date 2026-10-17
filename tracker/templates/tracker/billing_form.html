@@ -1,0 +1,176 @@
+{% extends "tracker/base.html" %}
+{% load tracker_extras %}
+{% block title %}{% if is_new %}Nouveau{% else %}{{ doc.code }}{% endif %}{% endblock %}
+{% block head %}
+<style>
+.doc-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-bottom:1rem}
+@media(max-width:820px){.doc-grid{grid-template-columns:1fr}}
+.doc-grid .card h2{margin:0 0 .8rem;font-size:1rem}
+.doc-grid .field{margin-bottom:.7rem}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
+.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+table.edit{table-layout:auto}
+table.edit td{padding:.35rem .4rem;vertical-align:top}
+table.edit th{padding:.5rem .4rem}
+.c-desc{min-width:240px}.c-unit{width:5.5rem}.c-qty{width:6.5rem}.c-price{width:8rem}.c-disc{width:6rem}.c-vat{width:6.5rem}.c-total{width:8rem;padding-top:.75rem!important}.c-x{width:2rem;text-align:center;padding-top:.7rem!important}
+table.edit input,table.edit select{padding:.4rem .45rem}
+.live{margin-left:auto;max-width:380px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel);margin-top:1rem}
+.live div{display:flex;justify-content:space-between;padding:.4rem .9rem;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.live .grand{background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:1.1rem;padding:.6rem .9rem;border-bottom:0}
+.rm{color:var(--late);font-size:1rem}
+.dim{color:var(--muted)}
+</style>
+{% endblock %}
+{% block content %}
+<h1>{% if is_new %}{% if doc.kind == 'facture' %}Nouvelle facture{% else %}Nouveau bon de livraison{% endif %}{% else %}Modifier {{ doc.code }}{% endif %}</h1>
+<p class="sub">{% if is_new %}Le numéro est attribué automatiquement à l'enregistrement.{% else %}{{ doc.title }} · {{ doc.client_name }}{% endif %}</p>
+<form method="post" id="doc-form">{% csrf_token %}
+  {% if form.non_field_errors %}<p class="err" role="alert">{{ form.non_field_errors|striptags }}</p>{% endif %}
+  <div class="doc-grid">
+    <section class="card">
+      <h2>Client</h2>
+      <div class="field">{{ form.client_name.label_tag }}{{ form.client_name }}{% if form.client_name.errors %}<p class="err">{{ form.client_name.errors|striptags }}</p>{% endif %}</div>
+      <div class="field">{{ form.client_address.label_tag }}{{ form.client_address }}</div>
+      <div class="two">
+        <div class="field">{{ form.client_tax_id.label_tag }}{{ form.client_tax_id }}</div>
+        <div class="field">{{ form.client_phone.label_tag }}{{ form.client_phone }}</div>
+      </div>
+      <div class="field">{{ form.client_email.label_tag }}{{ form.client_email }}</div>
+      <div class="field">
+        {{ form.client_location.label_tag }}{{ form.client_location }}
+        <span class="helptext">Optional: connect this client to a saved location.</span>
+      </div>
+    </section>
+    <section class="card">
+      <h2>{{ doc.title }}</h2>
+      <div class="two">
+        <div class="field">{{ form.date.label_tag }}{{ form.date }}{% if form.date.errors %}<p class="err">{{ form.date.errors|striptags }}</p>{% endif %}</div>
+        {% if form.due_date %}<div class="field">{{ form.due_date.label_tag }}{{ form.due_date }}</div>{% endif %}
+      </div>
+      <div class="two">
+        <div class="field">{{ form.status.label_tag }}{{ form.status }}</div>
+        {% if form.payment_method %}<div class="field">{{ form.payment_method.label_tag }}{{ form.payment_method }}</div>{% endif %}
+      </div>
+      {% if form.stamp_duty %}
+      <div class="two">
+        <div class="field">{{ form.stamp_duty.label_tag }}{{ form.stamp_duty }}{% if form.stamp_duty.errors %}<p class="err">{{ form.stamp_duty.errors|striptags }}</p>{% endif %}</div>
+        <div class="field">{{ form.withholding_rate.label_tag }}{{ form.withholding_rate }}{% if form.withholding_rate.errors %}<p class="err">{{ form.withholding_rate.errors|striptags }}</p>{% endif %}</div>
+      </div>
+      {% endif %}
+    </section>
+  </div>
+
+  <h2>Lignes</h2>
+  {{ formset.management_form }}
+  {% if formset.non_form_errors %}<p class="err" role="alert">{{ formset.non_form_errors|striptags }}</p>{% endif %}
+  <div class="wrap">
+  <table class="edit" id="lines">
+    <thead><tr><th>Désignation</th><th>Unité</th><th class="num">Qté</th><th class="num">P.U. HT</th><th class="num">Remise %</th><th>TVA</th><th class="num">Total HT</th><th></th></tr></thead>
+    <tbody id="lines-body">
+      {% for f in formset %}{% include "tracker/_doc_line_row.html" with f=f %}{% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p><button type="button" class="btn ghost" id="add-line">+ Ajouter une ligne</button></p>
+
+  <div class="live" aria-live="polite">
+    <div><span>Total HT</span><span id="t-ht">0.000</span></div>
+    <div><span>Total TVA</span><span id="t-vat">0.000</span></div>
+    {% if form.stamp_duty %}<div><span>Timbre fiscal</span><span id="t-stamp">0.000</span></div>{% endif %}
+    <div><span><b>Total TTC</b></span><span id="t-ttc"><b>0.000</b></span></div>
+    {% if form.withholding_rate %}<div><span>Retenue à la source</span><span id="t-rs">0.000</span></div>{% endif %}
+    <div class="grand"><span>Net à payer</span><span id="t-net">0.000</span></div>
+  </div>
+
+  <div class="field" style="margin-top:1.2rem;max-width:640px">{{ form.notes.label_tag }}{{ form.notes }}</div>
+  <button class="btn" type="submit">Enregistrer</button>
+  <a class="btn ghost" href="{{ cancel_url }}">Annuler</a>
+</form>
+
+<template id="line-template">{% include "tracker/_doc_line_row.html" with f=formset.empty_form %}</template>
+<datalist id="client-options">{% for name in clients %}<option value="{{ name }}">{% endfor %}</datalist>
+<datalist id="stock-options">{% for i in stock %}<option value="{{ i.name }}">{% endfor %}</datalist>
+<datalist id="payment-options"><option value="Espèces"><option value="Chèque"><option value="Virement"><option value="Carte bancaire"><option value="Traite"></datalist>
+{{ clients|json_script:"clients-data" }}
+{{ stock|json_script:"stock-data" }}
+{{ locations|json_script:"locations-data" }}
+<script>
+(function () {
+  var body = document.getElementById('lines-body');
+  var total = document.querySelector('input[name$="-TOTAL_FORMS"]');
+  var clients = JSON.parse(document.getElementById('clients-data').textContent);
+  var stock = JSON.parse(document.getElementById('stock-data').textContent);
+  var locations = JSON.parse(document.getElementById('locations-data').textContent);
+  var $ = function (id) { return document.getElementById(id); };
+  var num = function (v) { v = parseFloat(String(v).replace(',', '.')); return isNaN(v) ? 0 : v; };
+  var r3 = function (v) { return Math.round((v + Number.EPSILON) * 1000) / 1000; };
+  var fmt = function (v) { return r3(v).toLocaleString('fr-TN', { minimumFractionDigits: 3, maximumFractionDigits: 3 }); };
+
+  function field(row, suffix) { return row.querySelector('[name$="-' + suffix + '"]'); }
+  function isGone(row) { var d = field(row, 'DELETE'); return d && d.checked; }
+
+  function recalc() {
+    var ht = 0, vat = 0;
+    body.querySelectorAll('.line-row').forEach(function (row) {
+      var lt = r3(num(field(row, 'quantity').value) * num(field(row, 'unit_price').value) * (100 - num(field(row, 'discount_pct').value)) / 100);
+      row.querySelector('.line-total').textContent = fmt(lt);
+      if (isGone(row)) return;
+      ht += lt;
+      vat += r3(lt * num(field(row, 'vat_rate').value) / 100);
+    });
+    var sub = ht + vat;
+    var stampEl = document.getElementById('id_stamp_duty'), rsEl = document.getElementById('id_withholding_rate');
+    var stamp = stampEl ? num(stampEl.value) : 0;
+    var rs = rsEl ? r3(sub * num(rsEl.value) / 100) : 0;
+    $('t-ht').textContent = fmt(ht);
+    $('t-vat').textContent = fmt(vat);
+    if ($('t-stamp')) $('t-stamp').textContent = fmt(stamp);
+    $('t-ttc').innerHTML = '<b>' + fmt(sub + stamp) + '</b>';
+    if ($('t-rs')) $('t-rs').textContent = (rs ? '- ' : '') + fmt(rs);
+    $('t-net').textContent = fmt(sub + stamp - rs);
+  }
+
+  document.getElementById('doc-form').addEventListener('input', function (e) {
+    recalc();
+    var t = e.target;
+    if (t.name && /-description$/.test(t.name)) {            // picked something from your inventory: fill the unit
+      var hit = stock.find(function (s) { return s.name.toLowerCase() === t.value.trim().toLowerCase(); });
+      var unit = field(t.closest('tr'), 'unit');
+      if (hit && unit && !unit.value) unit.value = hit.unit;
+    }
+    if (t.id === 'id_client_name' && clients[t.value]) {     // a client you already invoiced: fill the blanks
+      var c = clients[t.value];
+      [['id_client_address', 'address'], ['id_client_tax_id', 'tax_id'], ['id_client_phone', 'phone'], ['id_client_email', 'email']].forEach(function (p) {
+        var el = $(p[0]); if (el && !el.value) el.value = c[p[1]] || '';
+      });
+    }
+  });
+  var placeSelect = $('id_client_location');
+  if (placeSelect) placeSelect.addEventListener('change', function () {
+    var place = locations.find(function (p) { return String(p.id) === placeSelect.value; });
+    var address = $('id_client_address');
+    if (place && address && !address.value.trim() && place.note) address.value = place.note;
+  });
+  document.getElementById('doc-form').addEventListener('change', recalc);
+
+  body.addEventListener('click', function (e) {
+    var btn = e.target.closest('.rm'); if (!btn) return;
+    var row = btn.closest('tr');
+    field(row, 'DELETE').checked = true;
+    row.style.display = 'none';
+    recalc();
+  });
+
+  document.getElementById('add-line').addEventListener('click', function () {
+    var n = parseInt(total.value, 10);
+    var html = document.getElementById('line-template').innerHTML.replace(/__prefix__/g, n);
+    body.insertAdjacentHTML('beforeend', html);
+    total.value = n + 1;
+    var row = body.lastElementChild;
+    field(row, 'description').focus();
+    recalc();
+  });
+  recalc();
+})();
+</script>
+{% endblock %}

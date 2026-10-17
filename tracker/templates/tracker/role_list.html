@@ -1,0 +1,41 @@
+{% extends "tracker/base.html" %}
+{% block content %}
+<h1>Users and roles</h1>
+{% include "tracker/_manage_tabs.html" with active="roles" %}
+<div class="actions"><a class="btn" href="{% url 'role_create' %}">Add role</a></div>
+<div class="wrap">
+<table>
+  <thead><tr><th>Role</th><th>Users</th><th></th></tr></thead>
+  <tbody>
+  {% for r in roles %}
+  <tr>
+    <td>{{ r.name }}</td>
+    <td>{{ r.user_count }}</td>
+    <td><a href="{% url 'role_update' r.pk %}">Edit what this role can do</a> &nbsp; <a href="{% url 'role_delete' r.pk %}">Delete</a></td>
+  </tr>
+  {% empty %}<tr><td colspan="3" class="empty">No roles yet. Add one to start giving people access.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% if roles %}
+<h2>What each role can do</h2>
+<p class="sub">Superusers can do everything, whatever their role.</p>
+<div class="wrap">
+<table class="matrix">
+  <thead><tr><th>Permission</th>{% for r in roles %}<th>{{ r.name }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for area in areas %}
+    <tr class="area"><th colspan="{{ roles|length|add:1 }}">{{ area.title }}</th></tr>
+    {% for row in area.rows %}
+    <tr>
+      <td>{{ row.label }}</td>
+      {% for yes in row.cells %}<td class="{% if yes %}yes{% endif %}">{% if yes %}Yes{% else %}-{% endif %}</td>{% endfor %}
+    </tr>
+    {% endfor %}
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}

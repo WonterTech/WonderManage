@@ -1,0 +1,55 @@
+{% extends "tracker/base.html" %}
+{% load tracker_extras %}
+{% block title %}{{ task.code }}{% endblock %}
+{% block head %}
+<style>
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));gap:.8rem;margin:0 0 1.4rem}
+.facts div{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:.6rem .8rem}
+.facts span{display:block;color:var(--muted);font-size:.85rem}
+.num{text-align:right;white-space:nowrap}
+.dim{color:var(--muted)}
+h2{margin:1.6rem 0 .6rem;font-size:1.1rem}
+tfoot td{font-weight:700}
+</style>
+{% endblock %}
+{% block content %}
+<h1>{{ task.display_title }}</h1>
+<p class="sub">{{ task.get_status_display }}{% if task.is_overdue %} · <span style="color:var(--late)">overdue</span>{% endif %}</p>
+<div class="actions">
+  {% if perms.tracker.change_task %}<a class="btn ghost" href="{% url 'task_update' task.pk %}?next={{ request.get_full_path|urlencode }}">Edit task</a>{% endif %}
+  {% if perms.tracker.delete_task %}<a class="btn ghost" href="{% url 'task_delete' task.pk %}">Delete</a>{% endif %}
+  <a class="btn ghost" href="{% url 'task_list' %}">All tasks</a>
+</div>
+<div class="facts">
+  <div><span>Due</span>{% if task.due_date %}{{ task.due_date|date:"D j M Y" }}{% else %}-{% endif %}</div>
+  <div><span>Priority</span>{{ task.get_priority_display }}</div>
+  <div><span>Type</span>{{ task.mission.title|default:"-" }}</div>
+  <div><span>Location</span>{{ task.place.name|default:"-" }}</div>
+  <div><span>Estimated time</span>{% if task.estimated_minutes %}{{ task.estimated_minutes }} min{% else %}-{% endif %}</div>
+</div>
+{% if task.description %}<p>{{ task.description|linebreaksbr }}</p>{% endif %}
+
+{% if can_materials %}
+<h2>Materials used</h2>
+{% if perms.tracker.add_taskmaterial %}<div class="actions"><a class="btn" href="{% url 'material_create' task.pk %}">Add material</a></div>{% endif %}
+<div class="wrap">
+<table>
+  <thead><tr><th>Material</th><th class="num">Quantity</th>{% if perms.tracker.view_costs %}<th class="num">Cost per unit</th><th class="num">Cost</th>{% endif %}<th>Note</th><th></th></tr></thead>
+  <tbody>
+  {% for l in lines %}
+  <tr>
+    <td>{% if perms.tracker.view_inventoryitem %}<a href="{% url 'item_detail' l.item.pk %}">{{ l.item.name }}</a>{% else %}{{ l.item.name }}{% endif %}</td>
+    <td class="num">{{ l.quantity|qty }} {{ l.item.unit }}</td>
+    {% if perms.tracker.view_costs %}<td class="num">{% if l.unit_price is not None %}{{ l.unit_price|money }} {{ brand.currency }}{% else %}<span class="dim">-</span>{% endif %}</td><td class="num">{{ l.line_total|money }} {{ brand.currency }}</td>{% endif %}
+    <td>{{ l.note }}</td>
+    <td>{% if perms.tracker.change_taskmaterial %}<a href="{% url 'material_update' l.pk %}">Edit</a>{% endif %}{% if perms.tracker.delete_taskmaterial %} <a href="{% url 'material_delete' l.pk %}">Remove</a>{% endif %}</td>
+  </tr>
+  {% empty %}<tr><td colspan="6" class="empty">No materials recorded on this task.</td></tr>{% endfor %}
+  </tbody>
+  {% if perms.tracker.view_costs and lines %}
+  <tfoot><tr><td colspan="3">Total material cost</td><td class="num">{{ total|money }} {{ brand.currency }}</td><td colspan="2"></td></tr></tfoot>
+  {% endif %}
+</table>
+</div>
+{% endif %}
+{% endblock %}

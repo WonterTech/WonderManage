@@ -1,0 +1,40 @@
+{{ map_config|json_script:"map-config" }}
+<dialog id="loc-dialog" aria-labelledby="loc-title" data-create-url="{% url 'location_create' %}" data-update-url="{% url 'location_update' 0 %}">
+  <form id="loc-form" method="dialog">{% csrf_token %}
+    <h2 id="loc-title">Add location</h2>
+    <div class="field">
+      <label for="loc-name">Name</label>
+      <input id="loc-name" name="name" required maxlength="200">
+    </div>
+    <div class="field">
+      <label for="loc-note">Address or note</label>
+      <input id="loc-note" name="note" maxlength="300">
+    </div>
+    <p id="loc-nomap" class="helptext" hidden>The map couldn't load. Check your internet connection. You can save the name now and add a pin later.</p>
+    <div id="loc-maptools" class="field">
+      <label for="loc-q">Find it on the map</label>
+      <div class="geo-row">
+        <input id="loc-q" type="search" placeholder="Search an address or place">
+        <button type="button" id="loc-find" class="btn ghost">Search</button>
+        <button type="button" id="loc-me" class="btn ghost">Use my location</button>
+      </div>
+      <label for="loc-google-link" style="margin-top:.7rem">Import from Google Maps</label>
+      <div class="geo-row">
+        <input id="loc-google-link" type="url" placeholder="Paste a Google Maps link or latitude, longitude">
+        <button type="button" id="loc-import" class="btn ghost">Use pin</button>
+      </div>
+      <span class="helptext">Works with a Maps link that contains coordinates, or a pair such as 36.8, 10.2.</span>
+      <ul id="loc-results" class="geo-results" hidden></ul>
+      <span class="helptext">Or click the map to drop a pin, then drag it to adjust. The pin is optional.</span>
+    </div>
+    <div id="loc-map" class="map"></div>
+    <input type="hidden" name="latitude" id="loc-lat">
+    <input type="hidden" name="longitude" id="loc-lng">
+    <p id="loc-error" class="err" role="alert" hidden></p>
+    <div class="dialog-actions">
+      <button class="btn" type="submit">Save location</button>
+      <button class="btn ghost" type="button" id="loc-unpin">Remove pin</button>
+      <button class="btn ghost" type="button" id="loc-cancel">Cancel</button>
+    </div>
+  </form>
+</dialog>

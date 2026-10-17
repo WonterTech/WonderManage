@@ -1,0 +1,98 @@
+{% extends "tracker/base.html" %}
+{% block content %}
+<h1>{{ page_title }}</h1>
+<form method="post" class="stack" id="item-form">{% csrf_token %}
+  {% for f in form %}
+  <div class="field">
+    {{ f.label_tag }}
+    {% if f.name == 'kind' %}
+    <div class="combo">{{ f }}<ul id="kind-list" role="listbox" hidden></ul></div>
+    <span class="helptext">Pick one from the list, or type a new one. You will be asked before a new type is created.</span>
+    {% else %}
+    {{ f }}
+    {% if f.help_text %}<span class="helptext">{{ f.help_text }}</span>{% endif %}
+    {% endif %}
+    {% if f.errors %}<p class="err">{{ f.errors|striptags }}</p>{% endif %}
+  </div>
+  {% endfor %}
+  <button class="btn" type="submit">Save</button>
+  <a class="btn ghost" href="{{ cancel_url|default:"/" }}">Cancel</a>
+</form>
+
+<dialog id="newtype-dialog">
+  <h2>Add a new type?</h2>
+  <p>“<b id="newtype-name"></b>” is not in your list of types yet. Do you want to add it as a new type?</p>
+  <div class="dialog-actions">
+    <button type="button" class="btn" id="newtype-yes">Yes, add it</button>
+    <button type="button" class="btn ghost" id="newtype-no">No</button>
+  </div>
+</dialog>
+{{ kinds|json_script:"kinds-data" }}
+<script>
+(function () {
+  var kinds = JSON.parse(document.getElementById('kinds-data').textContent);
+  var input = document.getElementById('id_kind');
+  var list = document.getElementById('kind-list');
+  var form = document.getElementById('item-form');
+  var dialog = document.getElementById('newtype-dialog');
+  var shown = [], active = -1, accepted = (input.value || '').trim().toLowerCase();
+
+  function norm(s) { return s.trim().replace(/\s+/g, ' ').toLowerCase(); }
+  function exists(v) { return kinds.some(function (k) { return norm(k) === norm(v); }); }
+  function close() { list.hidden = true; active = -1; }
+
+  function render() {
+    var q = norm(input.value);
+    shown = kinds.filter(function (k) { return !q || norm(k).indexOf(q) !== -1; })
+                 .map(function (k) { return { add: false, name: k }; });
+    if (q && !exists(input.value)) shown.push({ add: true, name: input.value.trim().replace(/\s+/g, ' ') });
+    list.innerHTML = '';
+    shown.forEach(function (it, i) {
+      var li = document.createElement('li');
+      li.setAttribute('role', 'option');
+      li.textContent = it.add ? '+ Add “' + it.name + '” as a new type' : it.name;
+      if (it.add) li.className = 'add';
+      li.addEventListener('mousedown', function (e) { e.preventDefault(); choose(it); });
+      list.appendChild(li);
+    });
+    list.hidden = shown.length === 0;
+    mark(shown.length ? Math.min(Math.max(active, 0), shown.length - 1) : -1);
+  }
+  function mark(i) {
+    active = i;
+    Array.prototype.forEach.call(list.children, function (li, n) { li.setAttribute('aria-selected', n === i ? 'true' : 'false'); });
+  }
+  function choose(it) {
+    close();
+    if (it.add) askNew(it.name, false); else { input.value = it.name; accepted = norm(it.name); }
+  }
+  function askNew(name, thenSubmit) {
+    document.getElementById('newtype-name').textContent = name;
+    dialog.dataset.name = name; dialog.dataset.submit = thenSubmit ? '1' : '';
+    dialog.showModal();
+  }
+  document.getElementById('newtype-yes').addEventListener('click', function () {
+    input.value = dialog.dataset.name; accepted = norm(input.value); dialog.close();
+    if (dialog.dataset.submit) form.requestSubmit(); else input.focus();
+  });
+  document.getElementById('newtype-no').addEventListener('click', function () {
+    dialog.close(); input.value = ''; accepted = ''; input.focus(); render();
+  });
+
+  input.addEventListener('focus', render);
+  input.addEventListener('input', function () { active = -1; render(); });
+  input.addEventListener('blur', function () { setTimeout(close, 120); });
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); if (list.hidden) render(); mark(Math.min(active + 1, shown.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); mark(Math.max(active - 1, 0)); }
+    else if (e.key === 'Enter' && !list.hidden && active >= 0) { e.preventDefault(); choose(shown[active]); }
+    else if (e.key === 'Escape') close();
+  });
+  // Saving with a type that does not exist yet: ask first (Yes saves it, No empties the box).
+  form.addEventListener('submit', function (e) {
+    var v = input.value;
+    if (norm(v) && !exists(v) && norm(v) !== accepted) { e.preventDefault(); askNew(v.trim().replace(/\s+/g, ' '), true); }
+  });
+})();
+</script>
+{% endblock %}

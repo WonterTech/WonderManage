@@ -1,0 +1,26 @@
+{% extends "tracker/base.html" %}
+{% block content %}
+<h1>Missions</h1>
+<p class="sub">A mission is a type of work, like "Site visit". Pick one on each task. Dates and places go on the task.</p>
+{% if perms.tracker.add_mission %}
+<form method="post" action="{% url 'mission_create' %}" class="inline-add">{% csrf_token %}
+  <input name="title" placeholder="New mission type" required maxlength="200" aria-label="Mission type name">
+  <button class="btn" type="submit">Add mission</button>
+</form>
+{% endif %}
+<div class="wrap">
+<table>
+  <thead><tr><th>Mission type</th><th>Open tasks</th><th>Done tasks</th><th></th></tr></thead>
+  <tbody>
+  {% for m in missions %}
+  <tr>
+    <td>{% if perms.tracker.view_task %}<a href="{% url 'task_list' %}?mission={{ m.pk }}&amp;status=all">{{ m.title }}</a>{% else %}{{ m.title }}{% endif %}</td>
+    <td>{{ m.open_count }}</td>
+    <td>{{ m.done_count }}</td>
+    <td>{% if perms.tracker.change_mission %}<a href="{% url 'mission_update' m.pk %}">Rename</a>{% endif %} &nbsp; {% if perms.tracker.delete_mission %}<a href="{% url 'mission_delete' m.pk %}">Delete</a>{% endif %}</td>
+  </tr>
+  {% empty %}<tr><td colspan="4" class="empty">No mission types yet.{% if perms.tracker.add_mission %} Type a name above to add the first one.{% endif %}</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

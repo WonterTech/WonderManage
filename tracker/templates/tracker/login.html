@@ -1,0 +1,13 @@
+{% extends "tracker/base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block content %}
+<h1>Sign in</h1>
+<p class="sub">Use the account an administrator created for you.</p>
+<form method="post" class="stack">{% csrf_token %}
+  {% if form.non_field_errors %}<p class="err" role="alert">{{ form.non_field_errors|striptags }}</p>{% endif %}
+  <div class="field">{{ form.username.label_tag }}{{ form.username }}</div>
+  <div class="field">{{ form.password.label_tag }}{{ form.password }}</div>
+  <input type="hidden" name="next" value="{{ next }}">
+  <button class="btn" type="submit">Sign in</button>
+</form>
+{% endblock %}

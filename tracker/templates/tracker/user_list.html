@@ -1,0 +1,25 @@
+{% extends "tracker/base.html" %}
+{% block content %}
+<h1>Users and roles</h1>
+{% include "tracker/_manage_tabs.html" with active="users" %}
+<div class="actions"><a class="btn" href="{% url 'user_create' %}">Add user</a></div>
+<div class="wrap">
+<table>
+  <thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Status</th><th>Last sign-in</th><th></th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+  <tr>
+    <td>{{ r.u.username }}{% if r.is_me %} <span class="tag">You</span>{% endif %}</td>
+    <td>{{ r.u.get_full_name|default:"-" }}</td>
+    <td>{% if r.u.is_superuser %}Superuser (can do everything){% elif r.role %}{{ r.role }}{% else %}<span class="empty">No role</span>{% endif %}</td>
+    <td>{% if r.u.is_active %}Active{% else %}Deactivated{% endif %}</td>
+    <td>{% if r.u.last_login %}{{ r.u.last_login|date:"j M Y, H:i" }}{% else %}Never{% endif %}</td>
+    <td>
+      {% if r.can_edit %}<a href="{% url 'user_update' r.u.pk %}">Edit</a>{% if not r.is_me %} &nbsp; <a href="{% url 'user_delete' r.u.pk %}">Delete</a>{% endif %}{% endif %}
+    </td>
+  </tr>
+  {% empty %}<tr><td colspan="6" class="empty">No users yet.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

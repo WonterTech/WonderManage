@@ -1,0 +1,74 @@
+{% extends "tracker/base.html" %}
+{% block title %}Appearance{% endblock %}
+{% block head %}
+<style>
+.swatches{display:flex;flex-wrap:wrap;gap:.7rem;margin:.4rem 0 0}
+.sw{display:flex;flex-direction:column;align-items:center;gap:.35rem;cursor:pointer;font-size:.9rem}
+.sw input{position:absolute;opacity:0;pointer-events:none}
+.sw i{display:block;width:3.4rem;height:2.4rem;border-radius:8px;border:2px solid var(--line)}
+.sw input:checked + i{border-color:var(--ink);box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--ink)}
+.sw input:focus-visible + i{outline:2px solid var(--accent);outline-offset:3px}
+.sw input[type=color]{position:static;opacity:1;pointer-events:auto;width:3.4rem;height:2.4rem;padding:0;border:2px solid var(--line);border-radius:8px;background:none}
+.brandpage .field{max-width:34rem;margin-bottom:1.4rem}
+.brandpage input[type=text]{width:100%}
+.currentlogo{display:flex;align-items:center;gap:1rem;margin:.4rem 0 .6rem}
+.currentlogo img{max-height:56px;max-width:200px;object-fit:contain;border:1px solid var(--line);border-radius:6px;padding:.3rem;background:#fff}
+.ok{color:var(--done);font-weight:600}
+</style>
+{% endblock %}
+{% block content %}
+<h1>Appearance</h1>
+{% include "tracker/_manage_tabs.html" with active="branding" %}
+<p class="sub">Give this installation its own name, logo and colours. Every user sees the change straight away.</p>
+{% if saved %}<p class="ok" role="status">Saved.</p>{% endif %}
+<form method="post" enctype="multipart/form-data" class="brandpage">{% csrf_token %}
+  <div class="field">
+    <label for="id_site_name">{{ form.site_name.label }}</label>
+    <input type="text" id="id_site_name" name="site_name" maxlength="60" value="{{ form.site_name.value|default_if_none:'' }}" placeholder="{{ default_name }}" required>
+    <span class="helptext">{{ form.site_name.help_text }}</span>
+    {% for e in form.site_name.errors %}<p class="err">{{ e }}</p>{% endfor %}
+  </div>
+
+  <div class="field">
+    <label for="id_currency">{{ form.currency.label }}</label>
+    <input type="text" id="id_currency" name="currency" maxlength="10" value="{{ form.currency.value|default_if_none:'' }}" placeholder="TND" style="max-width:10rem">
+    <span class="helptext">{{ form.currency.help_text }}</span>
+    {% for e in form.currency.errors %}<p class="err">{{ e }}</p>{% endfor %}
+  </div>
+
+  <div class="field">
+    <label>Logo</label>
+    {% if has_logo %}
+    <div class="currentlogo"><img src="{{ brand.logo_url }}" alt="Current logo"><label><input type="checkbox" name="remove_logo"> Remove the current logo</label></div>
+    {% endif %}
+    <input type="file" name="logo" accept="image/png,image/jpeg,image/gif,image/webp">
+    <span class="helptext">PNG, JPG, GIF or WebP, under 1 MB. A wide or square image with a transparent background works best. It also becomes the browser tab icon.</span>
+    {% for e in form.logo.errors %}<p class="err">{{ e }}</p>{% endfor %}
+  </div>
+
+  <div class="field">
+    <label>Colour palette</label>
+    {% with current=form.palette.value %}
+    <div class="swatches" role="radiogroup" aria-label="Colour palette">
+      {% for p in palettes %}
+      <label class="sw"><input type="radio" name="palette" value="{{ p.key }}" {% if p.key == current %}checked{% endif %}><i style="background:{{ p.color }}"></i>{{ p.name }}</label>
+      {% endfor %}
+      <label class="sw"><input type="radio" name="palette" value="custom" id="pal_custom" {% if current == "custom" %}checked{% endif %}><input type="color" name="custom_color" id="pal_color" value="{{ form.custom_color.value|default:'#1d4ed8' }}">Your colour</label>
+    </div>
+    {% endwith %}
+    <span class="helptext">The main colour is used for buttons and links; the page backgrounds are matched to it, in light and dark mode.</span>
+    {% for e in form.palette.errors %}<p class="err">{{ e }}</p>{% endfor %}
+    {% for e in form.custom_color.errors %}<p class="err">{{ e }}</p>{% endfor %}
+  </div>
+
+  <button class="btn" type="submit">Save</button>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+  (function () {
+    var color = document.getElementById('pal_color'), radio = document.getElementById('pal_custom');
+    if (color && radio) color.addEventListener('input', function () { radio.checked = true; });
+  })();
+</script>
+{% endblock %}

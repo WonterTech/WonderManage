@@ -1,0 +1,15 @@
+<div class="task {% if t.status == 'done' %}finished{% endif %}">
+  {% if perms.tracker.change_task %}
+  <form method="post" action="{% url 'task_toggle' t.pk %}">{% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <button class="check {% if t.status == 'done' %}on{% endif %}" aria-label="{% if t.status == 'done' %}Reopen{% else %}Mark done{% endif %}: {{ t.display_title }}"></button>
+  </form>
+  {% else %}<span class="check ro {% if t.status == 'done' %}on{% endif %}" role="img" aria-label="{% if t.status == 'done' %}Done{% else %}Not done{% endif %}"></span>{% endif %}
+  <span class="t"><a href="{% url 'task_detail' t.pk %}" style="color:inherit;text-decoration:none">{{ t.display_title }}</a></span>
+  {% if show_due and t.due_date %}<span class="tag">{{ t.due_date|date:"D j M" }}</span>{% endif %}
+  {% if t.priority == 3 %}<span class="tag p3">High</span>{% endif %}
+  {% if t.status == 'doing' %}<span class="tag doing">In progress</span>{% endif %}
+  {% if t.mission %}<span class="tag">{{ t.mission.title }}</span>{% endif %}
+  {% if t.place %}<span class="tag where">{{ t.place.name }}</span>{% endif %}
+  {% if perms.tracker.change_task %}<a class="edit" href="{% url 'task_update' t.pk %}?next={{ request.get_full_path|urlencode }}">Edit</a>{% endif %}
+</div>

@@ -1,0 +1,69 @@
+{% extends "tracker/base.html" %}
+{% load tracker_extras %}
+{% block title %}Facturation{% endblock %}
+{% block head %}
+<style>
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.8rem;margin:0 0 1.4rem}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:.8rem 1rem;border-left:4px solid var(--accent)}
+.kpi span{display:block;color:var(--muted);font-size:.85rem}
+.kpi b{display:block;font-size:1.5rem;line-height:1.25;font-variant-numeric:tabular-nums}
+.kpi.warn{border-left-color:var(--late)}.kpi.ok{border-left-color:var(--done)}.kpi.mute{border-left-color:var(--muted)}
+.filters{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
+.filters input[type=search],.filters select{width:auto;padding:.4rem .6rem}
+.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.dim{color:var(--muted)}
+.badge{display:inline-block;font-size:.78rem;font-weight:600;padding:.05rem .55rem;border-radius:99px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.badge.st-validated{border-color:var(--accent);color:var(--accent)}
+.badge.st-paid,.badge.st-delivered{border-color:var(--done);color:var(--done)}
+.badge.st-cancelled{border-color:var(--late);color:var(--late);text-decoration:line-through}
+.badge.late{border-color:var(--late);color:var(--late)}
+.type-f,.type-bl{font-weight:600}
+</style>
+{% endblock %}
+{% block content %}
+<h1>Facturation</h1>
+<p class="sub">Factures and bons de livraison, with the client and all the amounts.</p>
+<div class="actions">
+  {% if perms.tracker.add_document %}
+  <a class="btn" href="{% url 'document_create' 'facture' %}">+ Nouvelle facture</a>
+  <a class="btn ghost" href="{% url 'document_create' 'bl' %}">+ Nouveau bon de livraison</a>
+  {% endif %}
+  {% if perms.tracker.change_document %}<a class="btn ghost" href="{% url 'document_company' %}">Mon entreprise</a>{% endif %}
+</div>
+<div class="kpis">
+  <div class="kpi warn"><span>À encaisser (factures validées)</span><b>{{ unpaid|money }} {{ brand.currency }}</b>{% if late %}<span style="color:var(--late)">{{ late }} en retard</span>{% endif %}</div>
+  <div class="kpi ok"><span>Encaissé (factures payées)</span><b>{{ paid|money }} {{ brand.currency }}</b></div>
+  <div class="kpi mute"><span>Brouillons</span><b>{{ drafts }}</b></div>
+</div>
+<div class="tabs">
+  <a href="?" class="{% if not kind %}on{% endif %}">Tous</a>
+  <a href="?kind=facture" class="{% if kind == 'facture' %}on{% endif %}">Factures</a>
+  <a href="?kind=bl" class="{% if kind == 'bl' %}on{% endif %}">Bons de livraison</a>
+</div>
+<form method="get" class="filters">
+  {% if kind %}<input type="hidden" name="kind" value="{{ kind }}">{% endif %}
+  <input type="search" name="q" value="{{ q }}" placeholder="Client, N° ou matricule fiscal" aria-label="Search">
+  <select name="status" aria-label="Statut">
+    <option value="">Tous les statuts</option>
+    {% for key, label in statuses %}<option value="{{ key }}" {% if key == status %}selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <button class="btn ghost" type="submit">Filtrer</button>
+</form>
+<div class="wrap">
+<table>
+  <thead><tr><th>N°</th><th>Type</th><th>Client</th><th>Date</th><th class="num">Net à payer</th><th>Statut</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+  <tr>
+    <td><a href="{% url 'document_detail' r.d.pk %}"><b>{{ r.d.code }}</b></a></td>
+    <td class="dim">{{ r.d.title }}</td>
+    <td>{{ r.d.client_name }}</td>
+    <td class="date">{{ r.d.date|date:"d/m/Y" }}</td>
+    <td class="num"><b>{{ r.net|money }}</b> <span class="dim">{{ brand.currency }}</span></td>
+    <td><span class="badge st-{{ r.d.status }}">{{ r.d.get_status_display }}</span>{% if r.late %} <span class="badge late">En retard</span>{% endif %}</td>
+  </tr>
+  {% empty %}<tr><td colspan="6" class="empty">Aucun document pour le moment.{% if perms.tracker.add_document %} Créez votre première facture ou votre premier bon de livraison avec les boutons ci-dessus.{% endif %}</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}
